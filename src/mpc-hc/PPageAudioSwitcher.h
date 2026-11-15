@@ -29,6 +29,7 @@
 #include "CMPCThemeEdit.h"
 #include "CMPCThemeSpinButtonCtrl.h"
 #include "CMPCThemeComboBox.h"
+#include "CMPCThemeRadioOrCheck.h"
 
 // CPPageAudioSwitcher dialog (Kodi Audio Engine Settings)
 
