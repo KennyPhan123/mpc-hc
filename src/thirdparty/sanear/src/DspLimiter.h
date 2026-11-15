@@ -24,15 +24,18 @@ namespace SaneAudioRenderer
 
     private:
 
-        void NewTreshold(float peak);
+        float RunFrame(float highest);
 
         bool m_exclusive = false;
-        uint32_t m_rate = 0;
-        uint32_t m_channels = 0;
+        uint32_t m_rate = 48000;
+        uint32_t m_channels = 2;
 
         bool m_active = false;
-        int64_t m_holdWindow = 0;
-        float m_peak = 0.0f;
-        float m_threshold = 0.0f;
+        float m_attenuation = 1.0f;
+        int m_holdcounter = 0;
+        float m_increase = 0.0f;
+
+        static constexpr float m_limiterHold = 0.025f;
+        static constexpr float m_limiterRelease = 0.1f;
     };
 }

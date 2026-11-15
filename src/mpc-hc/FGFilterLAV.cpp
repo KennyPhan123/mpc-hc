@@ -964,11 +964,11 @@ void CFGFilterLAVAudio::Settings::LoadSettings()
 
     bOutput51Legacy = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("Output51Legacy"), bOutput51Legacy);
 
-    bMixingEnabled = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("Mixing"), bMixingEnabled);
+    bMixingEnabled = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingKodi"), TRUE);
 
     dwMixingLayout = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingLayout"), dwMixingLayout);
 
-    dwMixingFlags = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingFlags"), dwMixingFlags);
+    dwMixingFlags = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingFlagsKodi"), LAV_MIXING_FLAG_UNTOUCHED_STEREO);
 
     dwMixingMode = pApp->GetProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingMode"), dwMixingMode);
 
@@ -1020,11 +1020,11 @@ void CFGFilterLAVAudio::Settings::SaveSettings()
 
     pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("Output51Legacy"), bOutput51Legacy);
 
-    pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("Mixing"), bMixingEnabled);
+    pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingKodi"), bMixingEnabled);
 
     pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingLayout"), dwMixingLayout);
 
-    pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingFlags"), dwMixingFlags);
+    pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingFlagsKodi"), dwMixingFlags);
 
     pApp->WriteProfileInt(IDS_R_INTERNAL_LAVAUDIO, _T("MixingMode"), dwMixingMode);
 

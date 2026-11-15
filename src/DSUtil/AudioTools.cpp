@@ -74,8 +74,7 @@ void gain_float(const double factor, const size_t allsamples, float* pData)
     float* end = pData + allsamples;
     for (; pData < end; ++pData) {
         double d = factor * (*pData);
-        // floating point audio supports values outside [-1,1] range, clipping causes sound quality issues
-        limit(-10.0, d, 5.0); 
+        limit(-1.0, d, 1.0);
         *pData = (float)d;
     }
 }
@@ -85,7 +84,7 @@ void gain_double(const double factor, const size_t allsamples, double* pData)
     double* end = pData + allsamples;
     for (; pData < end; ++pData) {
         double d = factor * (*pData);
-        limit(-10.0, d, 5.0);
+        limit(-1.0, d, 1.0);
         *pData = d;
     }
 }

@@ -1,0 +1,85 @@
+name: Build MPC-HC (Kodi Audio Boost Edition)
+
+on:
+  push:
+    branches: [ develop, main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Ensure NASM is in PATH and generate build.user.bat
+        shell: pwsh
+        run: |
+          if (-not (Get-Command nasm.exe -ErrorAction SilentlyContinue)) {
+            $chocoNasm = "C:\ProgramData\chocolatey\bin\nasm.exe"
+            if (Test-Path $chocoNasm) {
+              "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            } else {
+              Write-Host "Downloading NASM 2.16.03..."
+              Invoke-WebRequest -Uri "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip" -OutFile "$env:RUNNER_TEMP\nasm.zip"
+              Expand-Archive -Path "$env:RUNNER_TEMP\nasm.zip" -DestinationPath "$env:RUNNER_TEMP\nasm" -Force
+              "$env:RUNNER_TEMP\nasm\nasm-2.16.03" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            }
+          }
+
+          $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Include"
+          $sdkVer = Get-ChildItem -Path $sdkRoot -Directory -Filter "10.0.*" |
+                    Sort-Object Name -Descending |
+                    Select-Object -First 1 -ExpandProperty Name
+          Write-Host "Detected Windows SDK version: $sdkVer"
+
+          $userBat = @(
+            "@ECHO OFF",
+            "SET `"MPCHC_LAV_TOOLCHAIN=MSVC`"",
+            "SET `"MPCHC_WINSDK_VER=$sdkVer`""
+          )
+          Set-Content -Path "build.user.bat" -Value $userBat -Encoding ASCII
+
+      - name: Build MPC-HC x64 Release (with LAVFilters64)
+        shell: cmd
+        run: |
+          call build.bat Build Main x64 Release Silent Nocolors
+          if errorlevel 1 exit /b 1
+          call build.bat Build IconLib x64 Release Silent Nocolors
+          if errorlevel 1 exit /b 1
+
+      - name: Print error logs on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "bin\logs" -Filter "*errors*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "=== $($_.Name) ==="
+            Get-Content $_.FullName
+          }
+
+      - name: Create portable Default settings (mpc-hc64.ini)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "bin\mpc-hc_x64\mpc-hc64.exe")) {
+            Write-Error "mpc-hc64.exe was not found in bin\mpc-hc_x64!"
+            exit 1
+          }
+          # Create empty mpc-hc64.ini so portable mode is active out-of-the-box with Kodi audio defaults
+          if (-not (Test-Path "bin\mpc-hc_x64\mpc-hc64.ini")) {
+            Set-Content -Path "bin\mpc-hc_x64\mpc-hc64.ini" -Value "[Settings]`r`n" -Encoding Unicode
+          }
+          Get-ChildItem -Path "bin\mpc-hc_x64" -Recurse | Select-Object FullName, Length
+
+      - name: Upload MPC-HC-KodiAudio-x64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MPC-HC-KodiAudio-x64
+          path: |
+            bin/mpc-hc_x64/**
+            !bin/mpc-hc_x64/**/*.pdb
+            !bin/mpc-hc_x64/**/*.lib
+            !bin/mpc-hc_x64/**/*.exp
+          if-no-files-found: error

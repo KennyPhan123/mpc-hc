@@ -1138,7 +1138,7 @@ void CAppSettings::SaveSettings(bool write_full_history /* = false */)
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZE, fAudioNormalize);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOMAXNORMFACTOR, nAudioMaxNormFactor);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZERECOVER, fAudioNormalizeRecover);
-    pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOST, nAudioBoost);
+    pApp->WriteProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), nAudioBoost);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOSTWARNED, bAudioBoostWarned);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINMODE, iReplayGainMode);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINPREAMP, iReplayGainPreamp);
@@ -2054,7 +2054,7 @@ void CAppSettings::LoadSettings()
     fAudioNormalize = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZE, FALSE);
     nAudioMaxNormFactor = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOMAXNORMFACTOR, 400);
     fAudioNormalizeRecover = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZERECOVER, TRUE);
-    nAudioBoost = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOST, 0);
+    nAudioBoost = std::min<UINT>(pApp->GetProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), 0), 60);
     bAudioBoostWarned = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOSTWARNED, FALSE);
     iReplayGainMode = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINMODE, 0), 0, 2);
     iReplayGainPreamp = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINPREAMP, 0), -15, 15);

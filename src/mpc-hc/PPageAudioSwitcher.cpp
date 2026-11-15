@@ -160,9 +160,9 @@ BOOL CPPageAudioSwitcher::OnInitDialog()
     m_nAudioMaxNormFactor = s.nAudioMaxNormFactor;
     m_AudioMaxNormFactorSpin.SetRange32(100, 1000);
     m_fAudioNormalizeRecover = s.fAudioNormalizeRecover;
-    m_AudioBoostCtrl.SetRange(0, 300);
-    m_AudioBoostCtrl.SetPageSize(10);
-    m_AudioBoostPos = s.nAudioBoost;
+    m_AudioBoostCtrl.SetRange(0, 60);
+    m_AudioBoostCtrl.SetPageSize(6);
+    m_AudioBoostPos = std::clamp((int)s.nAudioBoost, 0, 60);
     m_fAudioTimeShift = s.fAudioTimeShift;
     m_tAudioTimeShift = s.iAudioTimeShift;
     m_tAudioTimeShiftSpin.SetRange32(-1000 * 60 * 60 * 24, 1000 * 60 * 60 * 24);
@@ -449,13 +449,7 @@ void CPPageAudioSwitcher::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScroll
         return;
     }
     if (*pScrollBar == m_AudioBoostCtrl) {
-        CAppSettings& s = AfxGetAppSettings();
-        int cur = m_AudioBoostPos;
         UpdateData();
-        if (!s.bAudioBoostWarned && m_AudioBoostPos > cur && m_AudioBoostPos > 20) {
-            s.bAudioBoostWarned = true;
-            AfxMessageBox(IDS_AUDIO_BOOST_WARNING, MB_ICONEXCLAMATION | MB_OK, 0);
-        }
         ((CMainFrame*)GetParentFrame())->SetVolumeBoost(m_AudioBoostPos); // nice shortcut...
     }
     RedrawDialogTooltipIfVisible(); //if the scroll is caused by a wheel or arrows, the default tooltip may be active due to hover, in which case, we want to update
@@ -479,10 +473,12 @@ BOOL CPPageAudioSwitcher::OnToolTipNotify(UINT id, NMHDR* pNMHDR, LRESULT* pResu
     static CString strTipText;
 
     switch (nID) {
-        case IDC_SLIDER1:
-            strTipText.Format(IDS_BOOST, m_AudioBoostCtrl.GetPos());
+        case IDC_SLIDER1: {
+            int pos = m_AudioBoostCtrl.GetPos();
+            strTipText.Format(_T("+%d dB (%.0f%%)"), pos, 100.0 * pow(10.0, pos / 20.0));
             bRet = true;
             break;
+        }
         case IDC_EDIT2:
         case IDC_SPIN2:
             strTipText.LoadString(IDS_TIME_SHIFT_TOOLTIP);

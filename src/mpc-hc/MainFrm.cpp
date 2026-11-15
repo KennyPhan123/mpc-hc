@@ -10247,14 +10247,14 @@ void CMainFrame::OnPlayVolumeBoost(UINT nID)
 
     switch (nID) {
         case ID_VOLUME_BOOST_INC:
-            s.nAudioBoost += s.nVolumeStep;
-            if (s.nAudioBoost > 300) {
-                s.nAudioBoost = 300;
+            s.nAudioBoost += 1;
+            if (s.nAudioBoost > 60) {
+                s.nAudioBoost = 60;
             }
             break;
         case ID_VOLUME_BOOST_DEC:
-            if (s.nAudioBoost > s.nVolumeStep) {
-                s.nAudioBoost -= s.nVolumeStep;
+            if (s.nAudioBoost > 1) {
+                s.nAudioBoost -= 1;
             } else {
                 s.nAudioBoost = 0;
             }
@@ -10263,7 +10263,7 @@ void CMainFrame::OnPlayVolumeBoost(UINT nID)
             s.nAudioBoost = 0;
             break;
         case ID_VOLUME_BOOST_MAX:
-            s.nAudioBoost = 300;
+            s.nAudioBoost = 60;
             break;
     }
 
@@ -10281,9 +10281,10 @@ void CMainFrame::SetVolumeBoost(UINT nAudioBoost)
         UINT nMaxNormFactor, nBoost;
         pASF->GetNormalizeBoost2(fNormalize, nMaxNormFactor, fNormalizeRecover, nBoost);
 
+        UINT clampedBoost = std::min<UINT>(nAudioBoost, 60);
         CString strBoost;
-        strBoost.Format(IDS_BOOST_OSD, nAudioBoost);
-        pASF->SetNormalizeBoost2(fNormalize, nMaxNormFactor, fNormalizeRecover, nAudioBoost);
+        strBoost.Format(_T("Audio Boost: +%u dB (%.0f%%)"), clampedBoost, 100.0 * pow(10.0, (double)clampedBoost / 20.0));
+        pASF->SetNormalizeBoost2(fNormalize, nMaxNormFactor, fNormalizeRecover, clampedBoost);
         m_OSD.DisplayMessage(OSD_TOPLEFT, strBoost);
     }
 }
