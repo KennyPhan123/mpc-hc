@@ -931,6 +931,77 @@ void CFGFilterLAVAudio::ShowPropertyPages(CWnd* pParendWnd)
     CFGFilterLAV::ShowPropertyPages<AUDIO_DECODER, CFGFilterLAVAudio, ILAVAudioSettings, 2>(pParendWnd);
 }
 
+DWORD CFGFilterLAVAudio::CalcKodiCenterMixLevel(int centerMixdB)
+{
+    int clamped = std::max(-10, std::min(30, centerMixdB));
+    // Exact Kodi ActiveAE::CActiveAEResampleFFMPEG::Init formula:
+    // center_mix_level = sqrt(0.5) * pow(10.0, centerMixLevel / 20.0)
+    const double clev = 0.70710678118654752440 * std::pow(10.0, (double)clamped / 20.0);
+    return (DWORD)(clev * 10000.0 + 0.5);
+}
+
+void CFGFilterLAVAudio::ApplyKodiAudioSettings(ILAVAudioSettings* pLAVFSettings)
+{
+    if (!pLAVFSettings) {
+        return;
+    }
+
+    const CAppSettings& s = AfxGetAppSettings();
+
+    BOOL bMixingEnabled = TRUE;
+    DWORD dwMixingLayout = 0x3; // AV_CH_LAYOUT_STEREO (2.0)
+    switch (s.iKodiDownmixLayout) {
+        case 0: // Stereo (2.0)
+            bMixingEnabled = TRUE;
+            dwMixingLayout = 0x3;
+            break;
+        case 1: // 5.1 Surround
+            bMixingEnabled = TRUE;
+            dwMixingLayout = 0x3F;
+            break;
+        case 2: // 7.1 Surround
+            bMixingEnabled = TRUE;
+            dwMixingLayout = 0x63F;
+            break;
+        case 3: // Off (Original channels)
+            bMixingEnabled = FALSE;
+            dwMixingLayout = 0x3;
+            break;
+        default:
+            bMixingEnabled = TRUE;
+            dwMixingLayout = 0x3;
+            break;
+    }
+
+    DWORD dwMixingFlags = 0;
+    if (s.bKodiUntouchedStereo) {
+        dwMixingFlags |= LAV_MIXING_FLAG_UNTOUCHED_STEREO;
+    }
+    if (!s.bKodiMaintainOriginalVolume) {
+        dwMixingFlags |= LAV_MIXING_FLAG_NORMALIZE_MATRIX;
+    }
+
+    DWORD dwCenter = 7071, dwSurround = 7071, dwLFE = 0;
+    pLAVFSettings->GetMixingLevels(&dwCenter, &dwSurround, &dwLFE);
+    dwCenter = CalcKodiCenterMixLevel(s.iCenterMixLevel);
+
+    pLAVFSettings->SetMixingEnabled(bMixingEnabled);
+    pLAVFSettings->SetMixingLayout(dwMixingLayout);
+    pLAVFSettings->SetMixingFlags(dwMixingFlags);
+    pLAVFSettings->SetMixingLevels(dwCenter, dwSurround, dwLFE);
+}
+
+void CFGFilterLAVAudio::UpdateActiveInstances()
+{
+    POSITION pos = s_instances.GetHeadPosition();
+    while (pos) {
+        const IBaseFilter* pBF = s_instances.GetNext(pos);
+        if (CComQIPtr<ILAVAudioSettings> pLAVFSettings = const_cast<IBaseFilter*>(pBF)) {
+            ApplyKodiAudioSettings(pLAVFSettings);
+        }
+    }
+}
+
 static LPCTSTR bitstreamingCodecs[Bitstream_NB] = {
     _T("ac3"), _T("eac3"), _T("truehd"), _T("dts"), _T("dtshd")
 };
@@ -1075,6 +1146,8 @@ bool CFGFilterLAVAudio::Settings::GetSettings(CComQIPtr<ILAVAudioSettings> pLAVF
 
     bOutput51Legacy = pLAVFSettings->GetOutput51LegacyLayout();
 
+    ApplyKodiAudioSettings(pLAVFSettings);
+
     bMixingEnabled = pLAVFSettings->GetMixingEnabled();
 
     dwMixingLayout = pLAVFSettings->GetMixingLayout();
@@ -1133,6 +1206,8 @@ bool CFGFilterLAVAudio::Settings::SetSettings(CComQIPtr<ILAVAudioSettings> pLAVF
     pLAVFSettings->SetMixingMode((LAVAudioMixingMode)dwMixingMode);
 
     pLAVFSettings->SetMixingLevels(dwMixingCenterLevel, dwMixingSurroundLevel, dwMixingLFELevel);
+
+    ApplyKodiAudioSettings(pLAVFSettings);
 
     pLAVFSettings->SetAudioDelay(bAudioDelayEnabled, iAudioDelay);
 

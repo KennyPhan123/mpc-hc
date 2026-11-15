@@ -26,41 +26,24 @@
 #include "PPageAudioSwitcher.h"
 #include "CMPCTheme.h"
 
+// CPPageAudioSwitcher dialog (Kodi Audio Engine Settings)
 
-// CPPageAudioSwitcher dialog
-
-#pragma warning(push)
-#pragma warning(disable: 4351) // new behavior: elements of array 'array' will be default initialized
 IMPLEMENT_DYNAMIC(CPPageAudioSwitcher, CMPCThemePPageBase)
 CPPageAudioSwitcher::CPPageAudioSwitcher(IFilterGraph* pFG)
-#if 1
     : CMPCThemePPageBase(CPPageAudioSwitcher::IDD, CPPageAudioSwitcher::IDD)
-#else
-    : CMPCThemePPageBase(CPPageAudioSwitcher::IDD, IDS_AUDIOSWITCHER)
-#endif
-    , m_pSpeakerToChannelMap()
-    , m_dwChannelMask(0)
-    , m_fEnableAudioSwitcher(FALSE)
-    , m_fAudioNormalize(FALSE)
-    , m_nAudioMaxNormFactor(400)
-    , m_fAudioNormalizeRecover(FALSE)
+    , m_fEnableAudioSwitcher(TRUE)
     , m_AudioBoostPos(0)
-    , m_fCustomChannelMapping(FALSE)
-    , m_nChannels(0)
+    , m_nOrigAudioBoost(0)
+    , m_CenterMixPos(0)
+    , m_iOrigCenterMixLevel(0)
+    , m_iDownmixLayout(0)
+    , m_bMaintainOriginalVolume(TRUE)
+    , m_bUntouchedStereo(TRUE)
     , m_tAudioTimeShift(0)
     , m_fAudioTimeShift(FALSE)
-    , m_iReplayGainMode(0)
-    , m_iReplayGainPreamp(0)
-    , m_bReplayGainPreventClipping(TRUE)
 {
-    CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), pFG);
-
-    if (pASF) {
-        pASF->GetInputSpeakerConfig(&m_dwChannelMask);
-        m_nChannels = pASF->GetNumberOfInputChannels();
-    }
+    UNREFERENCED_PARAMETER(pFG);
 }
-#pragma warning(pop)
 
 CPPageAudioSwitcher::~CPPageAudioSwitcher()
 {
@@ -69,85 +52,55 @@ CPPageAudioSwitcher::~CPPageAudioSwitcher()
 void CPPageAudioSwitcher::DoDataExchange(CDataExchange* pDX)
 {
     __super::DoDataExchange(pDX);
-    DDX_Check(pDX, IDC_CHECK5, m_fAudioNormalize);
-    DDX_Text(pDX, IDC_EDIT3, m_nAudioMaxNormFactor);
-    DDX_Control(pDX, IDC_SPIN3, m_AudioMaxNormFactorSpin);
-    DDX_Check(pDX, IDC_CHECK6, m_fAudioNormalizeRecover);
+    DDX_Check(pDX, IDC_CHECK2, m_fEnableAudioSwitcher);
     DDX_Slider(pDX, IDC_SLIDER1, m_AudioBoostPos);
     DDX_Control(pDX, IDC_SLIDER1, m_AudioBoostCtrl);
-    DDX_Check(pDX, IDC_CHECK1, m_fCustomChannelMapping);
-    DDX_Control(pDX, IDC_EDIT1, m_nChannelsCtrl);
-    DDX_Text(pDX, IDC_EDIT1, m_nChannels);
-    if (m_nChannels > AS_MAX_CHANNELS) {
-        m_nChannels = AS_MAX_CHANNELS;
-        SetDlgItemText(IDC_EDIT1, L"18");
-    } else if (m_nChannels < 1) {
-        m_nChannels = 1;
-        SetDlgItemText(IDC_EDIT1, L"1");
-    }
-    DDX_Control(pDX, IDC_SPIN1, m_nChannelsSpinCtrl);
-    DDX_Control(pDX, IDC_LIST1, m_list);
-    DDX_Check(pDX, IDC_CHECK2, m_fEnableAudioSwitcher);
-    DDX_Control(pDX, IDC_CHECK1, m_fCustomChannelMappingCtrl);
+    DDX_Slider(pDX, IDC_SLIDER2, m_CenterMixPos);
+    DDX_Control(pDX, IDC_SLIDER2, m_CenterMixCtrl);
+    DDX_Control(pDX, IDC_COMBO1, m_downmixLayoutCtrl);
+    DDX_CBIndex(pDX, IDC_COMBO1, m_iDownmixLayout);
+    DDX_Check(pDX, IDC_CHECK5, m_bMaintainOriginalVolume);
+    DDX_Check(pDX, IDC_CHECK6, m_bUntouchedStereo);
     DDX_Control(pDX, IDC_EDIT2, m_tAudioTimeShiftCtrl);
     DDX_Control(pDX, IDC_SPIN2, m_tAudioTimeShiftSpin);
     DDX_Text(pDX, IDC_EDIT2, m_tAudioTimeShift);
     DDX_Check(pDX, IDC_CHECK4, m_fAudioTimeShift);
     DDX_Control(pDX, IDC_CHECK4, m_fAudioTimeShiftCtrl);
-    DDX_Control(pDX, IDC_COMBO1, m_replayGainModeCtrl);
-    DDX_CBIndex(pDX, IDC_COMBO1, m_iReplayGainMode);
-    DDX_Control(pDX, IDC_EDIT4, m_replayGainPreampCtrl);
-    DDX_Control(pDX, IDC_SPIN4, m_replayGainPreampSpin);
-    DDX_Text(pDX, IDC_EDIT4, m_iReplayGainPreamp);
-    DDX_Check(pDX, IDC_CHECK7, m_bReplayGainPreventClipping);
 }
 
 BEGIN_MESSAGE_MAP(CPPageAudioSwitcher, CMPCThemePPageBase)
-    ON_NOTIFY(NM_CLICK, IDC_LIST1, OnNMClickList1)
-    ON_BN_CLICKED(IDC_CHECK1, OnClickCheck1)
-    ON_WM_DRAWITEM()
-    ON_EN_CHANGE(IDC_EDIT1, OnEnChangeEdit1)
     ON_UPDATE_COMMAND_UI(IDC_STATIC6, OnUpdateAudioSwitcher)
     ON_UPDATE_COMMAND_UI(IDC_SLIDER1, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK5, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC4, OnUpdateNormalize)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC5, OnUpdateNormalize)
-    ON_UPDATE_COMMAND_UI(IDC_EDIT3, OnUpdateNormalize)
-    ON_UPDATE_COMMAND_UI(IDC_SPIN3, OnUpdateNormalize)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK6, OnUpdateNormalize)
+    ON_UPDATE_COMMAND_UI(IDC_STATIC1, OnUpdateAudioSwitcher)
+    ON_UPDATE_COMMAND_UI(IDC_STATIC2, OnUpdateDownmix)
+    ON_UPDATE_COMMAND_UI(IDC_SLIDER2, OnUpdateDownmix)
+    ON_UPDATE_COMMAND_UI(IDC_STATIC3, OnUpdateDownmix)
     ON_UPDATE_COMMAND_UI(IDC_STATIC7, OnUpdateAudioSwitcher)
     ON_UPDATE_COMMAND_UI(IDC_COMBO1, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC8, OnUpdateReplayGain)
-    ON_UPDATE_COMMAND_UI(IDC_EDIT4, OnUpdateReplayGain)
-    ON_UPDATE_COMMAND_UI(IDC_SPIN4, OnUpdateReplayGain)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK7, OnUpdateReplayGain)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK5, OnUpdateDownmix)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK6, OnUpdateDownmix)
+    ON_UPDATE_COMMAND_UI(IDC_CHECK4, OnUpdateAudioSwitcher)
     ON_UPDATE_COMMAND_UI(IDC_EDIT2, OnUpdateTimeShift)
     ON_UPDATE_COMMAND_UI(IDC_SPIN2, OnUpdateTimeShift)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK3, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK4, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_CHECK1, OnUpdateAudioSwitcher)
-    ON_UPDATE_COMMAND_UI(IDC_EDIT1, OnUpdateChannelMapping)
-    ON_UPDATE_COMMAND_UI(IDC_SPIN1, OnUpdateChannelMapping)
-    ON_UPDATE_COMMAND_UI(IDC_LIST1, OnUpdateChannelMapping)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC1, OnUpdateChannelMapping)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC2, OnUpdateChannelMapping)
-    ON_UPDATE_COMMAND_UI(IDC_STATIC3, OnUpdateChannelMapping)
     ON_WM_HSCROLL()
     ON_NOTIFY_EX(TTN_NEEDTEXT, 0, OnToolTipNotify)
 END_MESSAGE_MAP()
 
-
-void CPPageAudioSwitcher::SetChannelMappingSW(int v)
+void CPPageAudioSwitcher::UpdateValueLabels()
 {
-    GetDlgItem(IDC_EDIT1)->ShowWindow(v);
-    GetDlgItem(IDC_SPIN1)->ShowWindow(v);
-    GetDlgItem(IDC_LIST1)->ShowWindow(v);
-    GetDlgItem(IDC_STATIC_CM1)->ShowWindow(v);
-    GetDlgItem(IDC_STATIC_CM2)->ShowWindow(v);
-    GetDlgItem(IDC_STATIC_CM3)->ShowWindow(v);
-}
+    CString strBoost;
+    strBoost.Format(_T("+%d dB (%.0f%%)"), m_AudioBoostPos, 100.0 * std::pow(10.0, m_AudioBoostPos / 20.0));
+    SetDlgItemText(IDC_STATIC1, strBoost);
 
-// CPPageAudioSwitcher message handlers
+    CString strCenter;
+    const double clev = 0.70710678118654752440 * std::pow(10.0, m_CenterMixPos / 20.0);
+    if (m_CenterMixPos == 0) {
+        strCenter.Format(_T("0 dB (%.2fx)"), clev);
+    } else {
+        strCenter.Format(_T("%+d dB (%.2fx)"), m_CenterMixPos, clev);
+    }
+    SetDlgItemText(IDC_STATIC3, strCenter);
+}
 
 BOOL CPPageAudioSwitcher::OnInitDialog()
 {
@@ -156,76 +109,39 @@ BOOL CPPageAudioSwitcher::OnInitDialog()
     const CAppSettings& s = AfxGetAppSettings();
 
     m_fEnableAudioSwitcher = s.fEnableAudioSwitcher;
-    m_fAudioNormalize = s.fAudioNormalize;
-    m_nAudioMaxNormFactor = s.nAudioMaxNormFactor;
-    m_AudioMaxNormFactorSpin.SetRange32(100, 1000);
-    m_fAudioNormalizeRecover = s.fAudioNormalizeRecover;
-    m_AudioBoostCtrl.SetRange(0, 60);
+
+    m_AudioBoostCtrl.SetRange(0, 60, TRUE);
     m_AudioBoostCtrl.SetPageSize(6);
     m_AudioBoostPos = std::clamp((int)s.nAudioBoost, 0, 60);
+    m_nOrigAudioBoost = s.nAudioBoost;
+
+    m_CenterMixCtrl.SetRange(-10, 30, TRUE);
+    m_CenterMixCtrl.SetPageSize(2);
+    m_CenterMixPos = std::clamp(s.iCenterMixLevel, -10, 30);
+    m_iOrigCenterMixLevel = s.iCenterMixLevel;
+
+    m_downmixLayoutCtrl.AddString(_T("Stereo (2.0) [Kodi Default]"));
+    m_downmixLayoutCtrl.AddString(_T("5.1 Surround"));
+    m_downmixLayoutCtrl.AddString(_T("7.1 Surround"));
+    m_downmixLayoutCtrl.AddString(_T("Off (Original channels)"));
+    CorrectComboListWidth(m_downmixLayoutCtrl);
+    m_iDownmixLayout = std::clamp(s.iKodiDownmixLayout, 0, 3);
+
+    m_bMaintainOriginalVolume = s.bKodiMaintainOriginalVolume;
+    m_bUntouchedStereo = s.bKodiUntouchedStereo;
+
     m_fAudioTimeShift = s.fAudioTimeShift;
     m_tAudioTimeShift = s.iAudioTimeShift;
     m_tAudioTimeShiftSpin.SetRange32(-1000 * 60 * 60 * 24, 1000 * 60 * 60 * 24);
-    m_replayGainModeCtrl.AddString(ResStr(IDS_REPLAYGAIN_MODE_OFF));
-    m_replayGainModeCtrl.AddString(ResStr(IDS_REPLAYGAIN_MODE_TRACK));
-    m_replayGainModeCtrl.AddString(ResStr(IDS_REPLAYGAIN_MODE_ALBUM));
-    CorrectComboListWidth(m_replayGainModeCtrl);
-    m_iReplayGainMode = s.iReplayGainMode;
-    m_iReplayGainPreamp = s.iReplayGainPreamp;
-    m_replayGainPreampSpin.SetRange32(-15, 15);
-    m_bReplayGainPreventClipping = s.bReplayGainPreventClipping;
-    m_fCustomChannelMapping = s.fCustomChannelMapping;
-    memcpy(m_pSpeakerToChannelMap, s.pSpeakerToChannelMap, sizeof(s.pSpeakerToChannelMap));
-
-    m_nChannels = std::clamp(s.nSpeakerChannels, 1, AS_MAX_CHANNELS);
-    m_nChannelsSpinCtrl.SetRange(1, AS_MAX_CHANNELS);
-
-    m_list.setAdditionalStyles(0); //cleans up styles if necessary for mpc theme
-    m_list.InsertColumn(0, _T(""), LVCFMT_LEFT, 100);
-    m_list.InsertItem(0, _T(""));
-    m_list.InsertItem(1, ResStr(IDS_FRONT_LEFT));
-    m_list.InsertItem(2, ResStr(IDS_FRONT_RIGHT));
-    m_list.InsertItem(3, ResStr(IDS_FRONT_CENTER));
-    m_list.InsertItem(4, ResStr(IDS_LOW_FREQUENCY));
-    m_list.InsertItem(5, ResStr(IDS_BACK_LEFT));
-    m_list.InsertItem(6, ResStr(IDS_BACK_RIGHT));
-    m_list.InsertItem(7, ResStr(IDS_FRONT_LEFT_OF_CENTER));
-    m_list.InsertItem(8, ResStr(IDS_FRONT_RIGHT_OF_CENTER));
-    m_list.InsertItem(9, ResStr(IDS_BACK_CENTER));
-    m_list.InsertItem(10, ResStr(IDS_SIDE_LEFT));
-    m_list.InsertItem(11, ResStr(IDS_SIDE_RIGHT));
-    m_list.InsertItem(12, ResStr(IDS_TOP_CENTER));
-    m_list.InsertItem(13, ResStr(IDS_TOP_FRONT_LEFT));
-    m_list.InsertItem(14, ResStr(IDS_TOP_FRONT_CENTER));
-    m_list.InsertItem(15, ResStr(IDS_TOP_FRONT_RIGHT));
-    m_list.InsertItem(16, ResStr(IDS_TOP_BACK_LEFT));
-    m_list.InsertItem(17, ResStr(IDS_TOP_BACK_CENTER));
-    m_list.InsertItem(18, ResStr(IDS_TOP_BACK_RIGHT));
-    m_list.SetColumnWidth(0, LVSCW_AUTOSIZE);
-
-    for (int i = 1; i <= AS_MAX_CHANNELS; i++) {
-        m_list.InsertColumn(i, _T(""), LVCFMT_CENTER, 16);
-        CString n;
-        n.Format(_T("%d"), i);
-        m_list.SetItemText(0, i, n);
-        //      m_list.SetColumnWidth(i, LVSCW_AUTOSIZE);
-        //      m_list.SetColumnWidth(i, m_list.GetColumnWidth(i)*8/10);
-    }
 
     EnableThemedDialogTooltips(this);
     m_tooltip.Create(this);
     m_tooltip.Activate(TRUE);
 
-    CorrectComboBoxHeaderWidth(GetDlgItem(IDC_CHECK5));
-
-    if (!m_fCustomChannelMapping) {
-        SetChannelMappingSW(SW_HIDE);
-    }
-
     UpdateData(FALSE);
+    UpdateValueLabels();
 
-    return TRUE;  // return TRUE unless you set the focus to a control
-    // EXCEPTION: OCX Property Pages should return FALSE
+    return TRUE;
 }
 
 BOOL CPPageAudioSwitcher::OnApply()
@@ -235,25 +151,26 @@ BOOL CPPageAudioSwitcher::OnApply()
     CAppSettings& s = AfxGetAppSettings();
 
     s.fEnableAudioSwitcher = !!m_fEnableAudioSwitcher;
-    s.fAudioNormalize = !!m_fAudioNormalize;
-    if (m_nAudioMaxNormFactor > 1000) {
-        m_nAudioMaxNormFactor = 1000;
-    } else if (m_nAudioMaxNormFactor < 100) {
-        m_nAudioMaxNormFactor = 100;
-    }
-    s.nAudioMaxNormFactor = m_nAudioMaxNormFactor;
-    s.fAudioNormalizeRecover = !!m_fAudioNormalizeRecover;
-    s.nAudioBoost = m_AudioBoostPos;
+    s.fAudioNormalize = false;
+    s.fAudioNormalizeRecover = false;
+    s.fCustomChannelMapping = false;
+    s.iReplayGainMode = 0;
+
+    s.nAudioBoost = std::clamp(m_AudioBoostPos, 0, 60);
+    m_nOrigAudioBoost = s.nAudioBoost;
+
+    s.iCenterMixLevel = std::clamp(m_CenterMixPos, -10, 30);
+    m_iOrigCenterMixLevel = s.iCenterMixLevel;
+
+    s.iKodiDownmixLayout = std::clamp(m_iDownmixLayout, 0, 3);
+    s.bKodiMaintainOriginalVolume = !!m_bMaintainOriginalVolume;
+    s.bKodiUntouchedStereo = !!m_bUntouchedStereo;
+
     s.fAudioTimeShift = !!m_fAudioTimeShift;
     s.iAudioTimeShift = m_tAudioTimeShift;
-    s.iReplayGainMode = std::clamp(m_iReplayGainMode, 0, 2);
-    s.iReplayGainPreamp = std::clamp(m_iReplayGainPreamp, -15, 15);
-    s.bReplayGainPreventClipping = !!m_bReplayGainPreventClipping;
-    s.fCustomChannelMapping = !!m_fCustomChannelMapping;
-    memcpy(s.pSpeakerToChannelMap, m_pSpeakerToChannelMap, sizeof(m_pSpeakerToChannelMap));
-    s.nSpeakerChannels = std::clamp(m_nChannels, 1, AS_MAX_CHANNELS);
 
-    // There is no main frame when the option dialog is displayed stand-alone
+    UpdateValueLabels();
+
     if (CMainFrame* pMainFrame = AfxGetMainFrame()) {
         pMainFrame->UpdateControlState(CMainFrame::UPDATE_AUDIO_SWITCHER);
     }
@@ -261,199 +178,38 @@ BOOL CPPageAudioSwitcher::OnApply()
     return __super::OnApply();
 }
 
-void CPPageAudioSwitcher::OnClickCheck1()
-{
-    UpdateData();
-
-    if (m_fCustomChannelMapping) {
-        if (IDNO == AfxMessageBox(_T("WARNING: Channel mapping is not the same as channel mixing. Normal users should never enable this functionality.\n\nIf you want to do channel mixing (such as 5.1 -> stereo) you need to go here:\nInternal Filters > Audio Decoder > Mixing\n\nAre you really sure that you want to enable channel mapping?"), MB_ICONEXCLAMATION | MB_YESNO, 0)) {
-            m_fCustomChannelMapping = false;
-            UpdateData(FALSE);
-            SetChannelMappingSW(SW_HIDE);
-        } else {
-            SetChannelMappingSW(SW_SHOW);
-        }
-    } else {
-        SetChannelMappingSW(SW_HIDE);
-    }
-}
-
-void CPPageAudioSwitcher::OnNMClickList1(NMHDR* pNMHDR, LRESULT* pResult)
-{
-    LPNMLISTVIEW lpnmlv = (LPNMLISTVIEW)pNMHDR;
-
-    if (lpnmlv->iItem > 0 && lpnmlv->iSubItem > 0 && lpnmlv->iSubItem <= m_nChannels) {
-        UpdateData();
-        m_pSpeakerToChannelMap[m_nChannels - 1][lpnmlv->iItem - 1] ^= 1 << (lpnmlv->iSubItem - 1);
-        m_list.RedrawItems(lpnmlv->iItem, lpnmlv->iItem);
-        SetModified();
-
-        if (GetKeyState(VK_SHIFT) & 0x8000) {
-            OnApply();
-        }
-    }
-
-    *pResult = 0;
-}
-
-void CPPageAudioSwitcher::OnEnChangeEdit1()
-{
-    if (IsWindow(m_list.m_hWnd)) {
-        UpdateData();
-        m_list.Invalidate();
-        SetModified();
-    }
-}
-
-void CPPageAudioSwitcher::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruct)
-{
-    if (nIDCtl != IDC_LIST1) {
-        return;
-    }
-
-    //  if (lpDrawItemStruct->itemID == 0)
-    //      UpdateData();
-
-    CDC* pDC = CDC::FromHandle(lpDrawItemStruct->hDC);
-
-    pDC->SetBkMode(TRANSPARENT);
-
-    COLORREF frameClr, textClr, textDisabledClr, textNAClr;
-    COLORREF oldBkColor = pDC->GetBkColor();
-    if (AppNeedsThemedControls()) {
-        frameClr = CMPCTheme::AudioSwitcherGridColor;
-        textClr = CMPCTheme::TextFGColor;
-        textDisabledClr = CMPCTheme::ContentTextDisabledFGColorFade;
-        textNAClr = CMPCTheme::ContentTextDisabledFGColorFade2;
-        pDC->SetBkColor(CMPCTheme::ContentBGColor);
-        CRect bgRect = lpDrawItemStruct->rcItem;
-        pDC->FillSolidRect(bgRect, CMPCTheme::ContentBGColor);
-    } else {
-        frameClr = 0xe0e0e0;
-        textClr = 0;
-        textDisabledClr = 0xb0b0b0;
-        textNAClr = 0xe0e0e0;
-    }
-
-    CPen p(PS_INSIDEFRAME, 1, frameClr);
-    CPen* old = pDC->SelectObject(&p);
-
-    pDC->MoveTo(lpDrawItemStruct->rcItem.left, lpDrawItemStruct->rcItem.bottom - 1);
-    pDC->LineTo(lpDrawItemStruct->rcItem.right, lpDrawItemStruct->rcItem.bottom - 1);
-
-    CHeaderCtrl* pHeader = m_list.GetHeaderCtrl();
-    int nColumnCount = pHeader->GetItemCount();
-
-    for (int i = 0; i < nColumnCount; i++) {
-        CRect r, rb;
-        m_list.GetSubItemRect(lpDrawItemStruct->itemID, i, LVIR_BOUNDS, rb);
-        m_list.GetSubItemRect(lpDrawItemStruct->itemID, i, LVIR_LABEL, r);
-
-        pDC->MoveTo(r.right - 1, r.top);
-        pDC->LineTo(r.right - 1, r.bottom - 1);
-
-        CSize s = pDC->GetTextExtent(m_list.GetItemText(lpDrawItemStruct->itemID, i));
-
-        if (i == 0) {
-            r.left = rb.left;
-
-            if (lpDrawItemStruct->itemID == 0) {
-                pDC->MoveTo(0, 0);
-                pDC->LineTo(r.right, r.bottom - 1);
-            } else {
-                pDC->SetTextColor(m_list.IsWindowEnabled() ? textClr : textDisabledClr);
-                pDC->TextOut(r.left + 1, (r.top + r.bottom - s.cy) / 2, m_list.GetItemText(lpDrawItemStruct->itemID, i));
-            }
-        } else {
-            pDC->SetTextColor(i > m_nChannels ? textNAClr : (!m_list.IsWindowEnabled() ? textDisabledClr : textClr));
-
-            if (lpDrawItemStruct->itemID == 0) {
-                pDC->TextOut((r.left + r.right - s.cx) / 2, (r.top + r.bottom - s.cy) / 2, m_list.GetItemText(lpDrawItemStruct->itemID, i));
-            } else {
-                if (m_dwChannelMask & (1 << (lpDrawItemStruct->itemID - 1))) {
-                    int nBitsSet = 0;
-
-                    for (int j = 1; j <= (1 << (lpDrawItemStruct->itemID - 1)); j <<= 1) {
-                        if (m_dwChannelMask & j) {
-                            nBitsSet++;
-                        }
-                    }
-
-                    if (nBitsSet == i) {
-                        COLORREF tmp = pDC->GetTextColor();
-
-                        pDC->SetTextColor(textNAClr);
-                        CFont f;
-                        f.CreatePointFont(MulDiv(100, 96, pDC->GetDeviceCaps(LOGPIXELSX)), _T("Marlett"));
-                        CFont* old2 = pDC->SelectObject(&f);
-                        UNREFERENCED_PARAMETER(old2);
-                        s = pDC->GetTextExtent(_T("g"));
-                        pDC->TextOut((r.left + r.right - s.cx) / 2, (r.top + r.bottom - s.cy) / 2, _T("g"));
-
-                        pDC->SetTextColor(tmp);
-                    }
-                }
-
-                if (m_pSpeakerToChannelMap[m_nChannels - 1][lpDrawItemStruct->itemID - 1] & (1 << (i - 1))) {
-                    CFont f;
-                    f.CreatePointFont(MulDiv(100, 96, pDC->GetDeviceCaps(LOGPIXELSX)), _T("Marlett"));
-                    CFont* old2 = pDC->SelectObject(&f);
-                    s = pDC->GetTextExtent(_T("a"));
-                    pDC->TextOut((r.left + r.right - s.cx) / 2, (r.top + r.bottom - s.cy) / 2, _T("a"));
-                    pDC->SelectObject(old2);
-                }
-            }
-        }
-    }
-
-    pDC->SetBkColor(oldBkColor);
-    pDC->SelectObject(old);
-}
-
 void CPPageAudioSwitcher::OnUpdateAudioSwitcher(CCmdUI* pCmdUI)
 {
-    //  UpdateData();
-    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2)/*m_fEnableAudioSwitcher*/);
+    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2));
 }
 
-void CPPageAudioSwitcher::OnUpdateNormalize(CCmdUI* pCmdUI)
+void CPPageAudioSwitcher::OnUpdateDownmix(CCmdUI* pCmdUI)
 {
-    //  UpdateData();
-    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2)/*m_fEnableAudioSwitcher*/
-                   && IsDlgButtonChecked(IDC_CHECK5)/*m_fNormalize*/);
+    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2) && m_downmixLayoutCtrl.GetCurSel() != 3);
 }
 
 void CPPageAudioSwitcher::OnUpdateTimeShift(CCmdUI* pCmdUI)
 {
-    //  UpdateData();
-    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2)/*m_fEnableAudioSwitcher*/
-                   && IsDlgButtonChecked(IDC_CHECK4)/*m_fAudioTimeShift)*/);
-}
-
-void CPPageAudioSwitcher::OnUpdateReplayGain(CCmdUI* pCmdUI)
-{
-    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2)/*m_fEnableAudioSwitcher*/
-                   && m_replayGainModeCtrl.GetCurSel() > 0);
-}
-
-void CPPageAudioSwitcher::OnUpdateChannelMapping(CCmdUI* pCmdUI)
-{
-    //  UpdateData();
-    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2)/*m_fEnableAudioSwitcher*/
-                   && IsDlgButtonChecked(IDC_CHECK1)/*m_fCustomChannelMapping*/);
+    pCmdUI->Enable(IsDlgButtonChecked(IDC_CHECK2) && IsDlgButtonChecked(IDC_CHECK4));
 }
 
 void CPPageAudioSwitcher::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-    if (pScrollBar == nullptr) {
-        return;
-    }
     if (*pScrollBar == m_AudioBoostCtrl) {
         UpdateData();
-        ((CMainFrame*)GetParentFrame())->SetVolumeBoost(m_AudioBoostPos); // nice shortcut...
+        UpdateValueLabels();
+        if (CMainFrame* pMainFrame = AfxGetMainFrame()) {
+            pMainFrame->SetVolumeBoost(m_AudioBoostPos);
+        }
+    } else if (*pScrollBar == m_CenterMixCtrl) {
+        UpdateData();
+        UpdateValueLabels();
+        if (CMainFrame* pMainFrame = AfxGetMainFrame()) {
+            pMainFrame->SetCenterMixLevel(m_CenterMixPos);
+        }
     }
-    RedrawDialogTooltipIfVisible(); //if the scroll is caused by a wheel or arrows, the default tooltip may be active due to hover, in which case, we want to update
 
+    RedrawDialogTooltipIfVisible();
     SetModified();
 
     __super::OnHScroll(nSBCode, nPos, pScrollBar);
@@ -461,6 +217,9 @@ void CPPageAudioSwitcher::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScroll
 
 BOOL CPPageAudioSwitcher::OnToolTipNotify(UINT id, NMHDR* pNMHDR, LRESULT* pResult)
 {
+    UNREFERENCED_PARAMETER(id);
+    UNREFERENCED_PARAMETER(pResult);
+
     TOOLTIPTEXT* pTTT = (TOOLTIPTEXT*)pNMHDR;
 
     UINT_PTR nID = pNMHDR->idFrom;
@@ -469,13 +228,19 @@ BOOL CPPageAudioSwitcher::OnToolTipNotify(UINT id, NMHDR* pNMHDR, LRESULT* pResu
     }
 
     bool bRet = false;
-
     static CString strTipText;
 
     switch (nID) {
         case IDC_SLIDER1: {
             int pos = m_AudioBoostCtrl.GetPos();
-            strTipText.Format(_T("+%d dB (%.0f%%)"), pos, 100.0 * pow(10.0, pos / 20.0));
+            strTipText.Format(_T("+%d dB (%.0f%%)"), pos, 100.0 * std::pow(10.0, pos / 20.0));
+            bRet = true;
+            break;
+        }
+        case IDC_SLIDER2: {
+            int pos = m_CenterMixCtrl.GetPos();
+            const double clev = 0.70710678118654752440 * std::pow(10.0, pos / 20.0);
+            strTipText.Format(_T("Center Mix: %+d dB (%.2fx)"), pos, clev);
             bRet = true;
             break;
         }
@@ -496,10 +261,13 @@ BOOL CPPageAudioSwitcher::OnToolTipNotify(UINT id, NMHDR* pNMHDR, LRESULT* pResu
 
 void CPPageAudioSwitcher::OnCancel()
 {
-    const CAppSettings& s = AfxGetAppSettings();
-
-    if ((UINT)m_AudioBoostPos != s.nAudioBoost) {
-        ((CMainFrame*)GetParentFrame())->SetVolumeBoost(s.nAudioBoost);
+    if (CMainFrame* pMainFrame = AfxGetMainFrame()) {
+        if ((UINT)m_AudioBoostPos != m_nOrigAudioBoost) {
+            pMainFrame->SetVolumeBoost(m_nOrigAudioBoost);
+        }
+        if (m_CenterMixPos != m_iOrigCenterMixLevel) {
+            pMainFrame->SetCenterMixLevel(m_iOrigCenterMixLevel);
+        }
     }
 
     __super::OnCancel();

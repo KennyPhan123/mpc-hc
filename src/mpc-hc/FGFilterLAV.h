@@ -252,4 +252,7 @@ public:
     virtual HRESULT Create(IBaseFilter** ppBF, CInterfaceList<IUnknown, &IID_IUnknown>& pUnks);
 
     static void ShowPropertyPages(CWnd* pParendWnd);
+    static DWORD CalcKodiCenterMixLevel(int centerMixdB);
+    static void ApplyKodiAudioSettings(ILAVAudioSettings* pLAVFSettings);
+    static void UpdateActiveInstances();
 };

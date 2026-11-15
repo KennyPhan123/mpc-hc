@@ -164,7 +164,7 @@ CAppSettings::CAppSettings()
     , fAudioNormalize(false)
     , nAudioMaxNormFactor(400)
     , fAudioNormalizeRecover(true)
-    , nAudioBoost(0)
+    , nAudioBoost(0), iCenterMixLevel(0), iKodiDownmixLayout(0), bKodiMaintainOriginalVolume(true), bKodiUntouchedStereo(true)
     , bAudioBoostWarned(false)
     , iReplayGainMode(0)
     , iReplayGainPreamp(0)
@@ -1138,7 +1138,7 @@ void CAppSettings::SaveSettings(bool write_full_history /* = false */)
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZE, fAudioNormalize);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOMAXNORMFACTOR, nAudioMaxNormFactor);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZERECOVER, fAudioNormalizeRecover);
-    pApp->WriteProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), nAudioBoost);
+    pApp->WriteProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), nAudioBoost); pApp->WriteProfileInt(IDS_R_SETTINGS, _T("KodiCenterMixLevel_dB"), iCenterMixLevel); pApp->WriteProfileInt(IDS_R_SETTINGS, _T("KodiDownmixLayout"), iKodiDownmixLayout); pApp->WriteProfileInt(IDS_R_SETTINGS, _T("KodiMaintainOriginalVolume"), bKodiMaintainOriginalVolume); pApp->WriteProfileInt(IDS_R_SETTINGS, _T("KodiUntouchedStereo"), bKodiUntouchedStereo);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOSTWARNED, bAudioBoostWarned);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINMODE, iReplayGainMode);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINPREAMP, iReplayGainPreamp);
@@ -2054,7 +2054,7 @@ void CAppSettings::LoadSettings()
     fAudioNormalize = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZE, FALSE);
     nAudioMaxNormFactor = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOMAXNORMFACTOR, 400);
     fAudioNormalizeRecover = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIONORMALIZERECOVER, TRUE);
-    nAudioBoost = std::min<UINT>(pApp->GetProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), 0), 60);
+    nAudioBoost = std::min<UINT>(pApp->GetProfileInt(IDS_R_SETTINGS, _T("AudioBoost_dB"), 0), 60); iCenterMixLevel = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, _T("KodiCenterMixLevel_dB"), 0), -10, 30); iKodiDownmixLayout = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, _T("KodiDownmixLayout"), 0), 0, 3); bKodiMaintainOriginalVolume = !!pApp->GetProfileInt(IDS_R_SETTINGS, _T("KodiMaintainOriginalVolume"), TRUE); bKodiUntouchedStereo = !!pApp->GetProfileInt(IDS_R_SETTINGS, _T("KodiUntouchedStereo"), TRUE); fAudioNormalize = false; fCustomChannelMapping = false; iReplayGainMode = 0;
     bAudioBoostWarned = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOBOOSTWARNED, FALSE);
     iReplayGainMode = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINMODE, 0), 0, 2);
     iReplayGainPreamp = std::clamp((int)pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_REPLAYGAINPREAMP, 0), -15, 15);

@@ -262,6 +262,7 @@ private:
     void UpdateDXVAStatus();
 
     void SetVolumeBoost(UINT nAudioBoost);
+    void SetCenterMixLevel(int iCenterMixdB);
     // ReplayGain values found in the tags of the currently open file
     struct ReplayGainInfo {
         bool bHasTrackGain = false, bHasAlbumGain = false;

@@ -820,6 +820,10 @@ public:
     UINT            nAudioMaxNormFactor;
     bool            fAudioNormalizeRecover;
     UINT            nAudioBoost;
+    int             iCenterMixLevel;
+    int             iKodiDownmixLayout;
+    bool            bKodiMaintainOriginalVolume;
+    bool            bKodiUntouchedStereo;
     bool            bAudioBoostWarned;
     int             iReplayGainMode; // 0: off, 1: track, 2: album
     int             iReplayGainPreamp; // dB

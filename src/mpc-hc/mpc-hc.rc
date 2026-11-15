@@ -114,33 +114,24 @@ IDD_PPAGEAUDIOSWITCHER DIALOGEX 0, 0, 355, 309
 STYLE DS_SETFONT | WS_CHILD
 FONT 9, "Segoe UI", 400, 0, 0x1
 BEGIN
-    CONTROL         "Enable built-in audio switcher filter (requires restart)",IDC_CHECK2,
+    CONTROL         "Enable Kodi Audio Engine (requires restart)",IDC_CHECK2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,6,343,8
     CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,6,20,343,1
-    CONTROL         "Normalize",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,6,25,82,8
-    LTEXT           "Max amplification:",IDC_STATIC4,6,37,132,8
-    EDITTEXT        IDC_EDIT3,149,35,43,13,ES_AUTOHSCROLL | ES_NUMBER,WS_EX_RIGHT
-    CONTROL         "",IDC_SPIN3,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_HOTTRACK,178,35,14,13
-    LTEXT           "%",IDC_STATIC5,194,37,14,8
-    CONTROL         "Regain volume",IDC_CHECK6,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,212,37,130,8
-    LTEXT           "Boost:",IDC_STATIC6,6,59,66,8
-    CONTROL         "",IDC_SLIDER1,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | TBS_TOOLTIPS | WS_TABSTOP | TBS_DOWNISLEFT,72,55,132,15
-    LTEXT           "ReplayGain:",IDC_STATIC7,6,78,132,8
-    COMBOBOX        IDC_COMBO1,149,76,120,80,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Preamp (dB):",IDC_STATIC8,6,96,132,8
-    EDITTEXT        IDC_EDIT4,149,94,43,13,ES_AUTOHSCROLL,WS_EX_RIGHT
-    CONTROL         "",IDC_SPIN4,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_HOTTRACK,178,94,14,13
-    CONTROL         "Prevent clipping",IDC_CHECK7,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,212,96,130,8
-    CONTROL         "Audio time shift (ms):",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,115,138,8
-    EDITTEXT        IDC_EDIT2,149,112,55,13,ES_AUTOHSCROLL,WS_EX_RIGHT
-    CONTROL         "",IDC_SPIN2,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_HOTTRACK,190,112,14,13
-    CONTROL         "Enable custom channel mapping",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,132,343,8
-    LTEXT           "Speaker configuration for",IDC_STATIC_CM1,6,148,138,8
-    EDITTEXT        IDC_EDIT1,149,146,35,13,ES_CENTER | ES_AUTOHSCROLL
-    CONTROL         "",IDC_SPIN1,"msctls_updown32",UDS_WRAP | UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_HOTTRACK,169,146,14,13
-    LTEXT           "input channels:",IDC_STATIC_CM2,188,148,161,8
-    CONTROL         "",IDC_LIST1,"SysListView32",LVS_REPORT | LVS_OWNERDRAWFIXED | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,6,165,343,124
-    CTEXT           "Hold shift for immediate changes when clicking something",IDC_STATIC_CM3,6,294,343,8
+    LTEXT           "Volume amplification (Boost):",IDC_STATIC6,6,30,115,8
+    CONTROL         "",IDC_SLIDER1,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | TBS_TOOLTIPS | WS_TABSTOP | TBS_DOWNISLEFT,124,26,145,15
+    LTEXT           "+0 dB (100%)",IDC_STATIC1,274,30,75,8
+    LTEXT           "Downmix: Center mix level:",IDC_STATIC2,6,54,115,8
+    CONTROL         "",IDC_SLIDER2,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | TBS_TOOLTIPS | WS_TABSTOP | TBS_DOWNISLEFT,124,50,145,15
+    LTEXT           "0 dB (0.71x)",IDC_STATIC3,274,54,75,8
+    LTEXT           "Downmix output channels:",IDC_STATIC7,6,79,115,8
+    COMBOBOX        IDC_COMBO1,124,76,165,80,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Maintain original volume on downmix (Kodi CAELimiter, no volume drop)",IDC_CHECK5,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,102,343,10
+    CONTROL         "Don't mix Stereo (2.0) sources",IDC_CHECK6,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,118,343,10
+    CONTROL         "",IDC_STATIC,"Static",SS_ETCHEDHORZ,6,136,343,1
+    CONTROL         "Audio offset / time shift (ms):",IDC_CHECK4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,147,115,8
+    EDITTEXT        IDC_EDIT2,124,144,60,13,ES_AUTOHSCROLL,WS_EX_RIGHT
+    CONTROL         "",IDC_SPIN2,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_HOTTRACK,170,144,14,13
+    LTEXT           "Kodi ActiveAE Peak Limiter (0ms attack, 25ms hold, 100ms exp release) prevents clipping at all Boost & Center Mix levels.",IDC_STATIC4,6,174,343,20
 END
 
 IDD_GOTO_DLG DIALOGEX 0, 0, 186, 120
@@ -3881,15 +3872,15 @@ END
 STRINGTABLE
 BEGIN
     IDS_OSD_ZOOM_AUTO       "Zoom: Auto"
-    IDS_CUSTOM_CHANNEL_MAPPING "Toggle custom channel mapping"
-    IDS_OSD_CUSTOM_CH_MAPPING_ON "Custom channel mapping: On"
-    IDS_OSD_CUSTOM_CH_MAPPING_OFF "Custom channel mapping: Off"
-    IDS_NORMALIZE           "Toggle normalization"
-    IDS_OSD_NORMALIZE_ON    "Normalization: On"
-    IDS_OSD_NORMALIZE_OFF   "Normalization: Off"
-    IDS_REGAIN_VOLUME       "Toggle regain volume"
-    IDS_OSD_REGAIN_VOLUME_ON "Regain volume: On"
-    IDS_OSD_REGAIN_VOLUME_OFF "Regain volume: Off"
+    IDS_CUSTOM_CHANNEL_MAPPING "Center mix level reset (0 dB)"
+    IDS_OSD_CUSTOM_CH_MAPPING_ON "Center mix level: 0 dB"
+    IDS_OSD_CUSTOM_CH_MAPPING_OFF "Center mix level: 0 dB"
+    IDS_NORMALIZE           "Center mix level increase (+1 dB)"
+    IDS_OSD_NORMALIZE_ON    "Center mix level +1 dB"
+    IDS_OSD_NORMALIZE_OFF   "Center mix level +1 dB"
+    IDS_REGAIN_VOLUME       "Center mix level decrease (-1 dB)"
+    IDS_OSD_REGAIN_VOLUME_ON "Center mix level -1 dB"
+    IDS_OSD_REGAIN_VOLUME_OFF "Center mix level -1 dB"
     IDS_SIZE_UNIT_BYTES     "bytes"
     IDS_SIZE_UNIT_K         "KB"
     IDS_SIZE_UNIT_M         "MB"

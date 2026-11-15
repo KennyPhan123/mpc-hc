@@ -10272,20 +10272,36 @@ void CMainFrame::OnPlayVolumeBoost(UINT nID)
 
 void CMainFrame::SetVolumeBoost(UINT nAudioBoost)
 {
+    UINT clampedBoost = std::min<UINT>(nAudioBoost, 60);
+    AfxGetAppSettings().nAudioBoost = clampedBoost;
+
     if (!IsStateLoaded()) {
         return;
     }
 
     if (CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), m_graph.m_pGB)) {
-        bool fNormalize, fNormalizeRecover;
-        UINT nMaxNormFactor, nBoost;
-        pASF->GetNormalizeBoost2(fNormalize, nMaxNormFactor, fNormalizeRecover, nBoost);
-
-        UINT clampedBoost = std::min<UINT>(nAudioBoost, 60);
         CString strBoost;
         strBoost.Format(_T("Audio Boost: +%u dB (%.0f%%)"), clampedBoost, 100.0 * pow(10.0, (double)clampedBoost / 20.0));
-        pASF->SetNormalizeBoost2(fNormalize, nMaxNormFactor, fNormalizeRecover, clampedBoost);
+        pASF->SetNormalizeBoost2(false, 100, false, clampedBoost);
         m_OSD.DisplayMessage(OSD_TOPLEFT, strBoost);
+    }
+}
+
+void CMainFrame::SetCenterMixLevel(int iCenterMixdB)
+{
+    CAppSettings& s = AfxGetAppSettings();
+    s.iCenterMixLevel = std::clamp(iCenterMixdB, -10, 30);
+    CFGFilterLAVAudio::UpdateActiveInstances();
+
+    if (IsStateLoaded()) {
+        const double clev = 0.70710678118654752440 * std::pow(10.0, (double)s.iCenterMixLevel / 20.0);
+        CString strOSD;
+        if (s.iCenterMixLevel == 0) {
+            strOSD.Format(_T("Center Mix Level: 0 dB (%.2fx)"), clev);
+        } else {
+            strOSD.Format(_T("Center Mix Level: %+d dB (%.2fx)"), s.iCenterMixLevel, clev);
+        }
+        m_OSD.DisplayMessage(OSD_TOPLEFT, strOSD);
     }
 }
 
@@ -10296,12 +10312,7 @@ void CMainFrame::OnUpdatePlayVolumeBoost(CCmdUI* pCmdUI)
 
 void CMainFrame::OnCustomChannelMapping()
 {
-    if (CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), m_graph.m_pGB)) {
-        CAppSettings& s = AfxGetAppSettings();
-        s.fCustomChannelMapping = !s.fCustomChannelMapping;
-        pASF->SetSpeakerConfig(s.fCustomChannelMapping, s.pSpeakerToChannelMap);
-        m_OSD.DisplayMessage(OSD_TOPLEFT, ResStr(s.fCustomChannelMapping ? IDS_OSD_CUSTOM_CH_MAPPING_ON : IDS_OSD_CUSTOM_CH_MAPPING_OFF));
-    }
+    SetCenterMixLevel(0);
 }
 
 void CMainFrame::OnUpdateCustomChannelMapping(CCmdUI* pCmdUI)
@@ -10312,23 +10323,14 @@ void CMainFrame::OnUpdateCustomChannelMapping(CCmdUI* pCmdUI)
 
 void CMainFrame::OnNormalizeRegainVolume(UINT nID)
 {
-    if (CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), m_graph.m_pGB)) {
-        CAppSettings& s = AfxGetAppSettings();
-        WORD osdMessage = 0;
-
-        switch (nID) {
-            case ID_NORMALIZE:
-                s.fAudioNormalize = !s.fAudioNormalize;
-                osdMessage = s.fAudioNormalize ? IDS_OSD_NORMALIZE_ON : IDS_OSD_NORMALIZE_OFF;
-                break;
-            case ID_REGAIN_VOLUME:
-                s.fAudioNormalizeRecover = !s.fAudioNormalizeRecover;
-                osdMessage = s.fAudioNormalizeRecover ? IDS_OSD_REGAIN_VOLUME_ON : IDS_OSD_REGAIN_VOLUME_OFF;
-                break;
-        }
-
-        pASF->SetNormalizeBoost2(s.fAudioNormalize, s.nAudioMaxNormFactor, s.fAudioNormalizeRecover, s.nAudioBoost);
-        m_OSD.DisplayMessage(OSD_TOPLEFT, ResStr(osdMessage));
+    CAppSettings& s = AfxGetAppSettings();
+    switch (nID) {
+        case ID_NORMALIZE:
+            SetCenterMixLevel(s.iCenterMixLevel + 1);
+            break;
+        case ID_REGAIN_VOLUME:
+            SetCenterMixLevel(s.iCenterMixLevel - 1);
+            break;
     }
 }
 
@@ -21924,11 +21926,10 @@ void CMainFrame::UpdateAudioSwitcher()
     CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), m_graph.m_pGB);
 
     if (pASF) {
-        pASF->SetSpeakerConfig(s.fCustomChannelMapping, s.pSpeakerToChannelMap);
         pASF->SetAudioTimeShift(s.fAudioTimeShift ? 10000i64 * s.iAudioTimeShift : 0);
-        pASF->SetNormalizeBoost2(s.fAudioNormalize, s.nAudioMaxNormFactor, s.fAudioNormalizeRecover, s.nAudioBoost);
-        ApplyReplayGain();
+        pASF->SetNormalizeBoost2(false, 100, false, s.nAudioBoost);
     }
+    CFGFilterLAVAudio::UpdateActiveInstances();
 }
 
 // Parses a ReplayGain tag value such as "-6.20 dB", "+1.5" or "0.988525" (peak)
@@ -21949,41 +21950,9 @@ bool CMainFrame::ParseReplayGainValue(LPCWSTR str, float& value)
     return true;
 }
 
-// Pushes the gain for the current file into the audio switcher, according to the ReplayGain settings
+// Legacy ReplayGain removed in Kodi Audio Engine
 void CMainFrame::ApplyReplayGain()
 {
-    CComQIPtr<IAudioSwitcherFilter> pASF = FindFilter(__uuidof(CAudioSwitcherFilter), m_graph.m_pGB);
-    if (!pASF) {
-        return;
-    }
-
-    const CAppSettings& s = AfxGetAppSettings();
-    bool bApply = false;
-    float gain_dB = 0.0f, peak = 0.0f;
-
-    if (s.iReplayGainMode == 1 || s.iReplayGainMode == 2) {
-        // use the preferred tag, falling back to the other one when it is missing
-        bool bUseAlbum = (s.iReplayGainMode == 2) ? m_replayGain.bHasAlbumGain : !m_replayGain.bHasTrackGain;
-        if (bUseAlbum && m_replayGain.bHasAlbumGain) {
-            bApply = true;
-            gain_dB = m_replayGain.fAlbumGain;
-            peak = m_replayGain.fAlbumPeak;
-        } else if (m_replayGain.bHasTrackGain) {
-            bApply = true;
-            gain_dB = m_replayGain.fTrackGain;
-            peak = m_replayGain.fTrackPeak;
-        }
-    }
-
-    if (bApply) {
-        gain_dB = std::clamp(gain_dB, -60.0f, 60.0f) + s.iReplayGainPreamp;
-        if (s.bReplayGainPreventClipping && peak > 0.0f) {
-            // do not raise the tagged peak above full scale
-            gain_dB = std::min(gain_dB, float(-20.0 * log10(peak)));
-        }
-    }
-    TRACE(_T("ReplayGain: %s, %.2f dB\n"), bApply ? _T("on") : _T("off"), gain_dB);
-    pASF->SetReplayGain(bApply, gain_dB);
 }
 
 void CMainFrame::LoadArtToViews(const CString& imagePath)

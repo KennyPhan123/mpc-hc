@@ -75,21 +75,10 @@ public:
 class __declspec(uuid("18C16B08-6497-420e-AD14-22D21C2CEAB7"))
     CAudioSwitcherFilter : public CStreamSwitcherFilter, public IAudioSwitcherFilter
 {
-    struct ChMap {
-        DWORD Speaker, Channel;
-    };
-    CAtlArray<ChMap> m_chs[AS_MAX_CHANNELS];
-
-    bool m_fCustomChannelMapping;
-    DWORD m_pSpeakerToChannelMap[AS_MAX_CHANNELS][AS_MAX_CHANNELS];
     REFERENCE_TIME m_rtAudioTimeShift;
-    bool m_fNormalize, m_fNormalizeRecover;
-    double m_nMaxNormFactor, m_boostFactor;
+    double m_boostFactor;
     UINT m_boostdB;
     CAELimiter m_limiter;
-    double m_normalizeFactor;
-    bool m_bReplayGain;
-    double m_replayGainFactor;
 
     REFERENCE_TIME m_rtNextStart, m_rtNextStop;
     REFERENCE_TIME m_rtSegmentStart;
